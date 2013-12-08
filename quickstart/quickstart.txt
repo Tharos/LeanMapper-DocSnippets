@@ -1,0 +1,268 @@
+Quick start
+*****
+
+Nejpřínosnější bude, když s Lean Mapperem začneme prakticky – naprogramujeme si základ modelu webové aplikace a předvedeme si řadu případů jeho užití.
+
+Po přečtení quick startu budete mít velmi dobrou představu o tom, čím Lean Mapper je. Nezapomeňte ale, že quick start je jen ochutnávka. Nejde v tématech do hloubky. A proto, pokud vás Lean Mapper zaujme, určitě nevynechte podrobnou dokumentaci.
+
+Zadání
+=====
+
+Naprogramujte základ modelu informačního systému pro knihovnu. V knihovně je zapotřebí sledovat knihy, autory knih, recenzenty knih, čtenáře, výpůjčky a štítky, kterými jsou knihy označeny. Využijte následujícího schéma databáze:
+
+[* schema.png *]
+
+v knihovně dále platí, že:
+
+- E-maily čtenářů musí být validní e-mailové adresy
+- Při zakládání nového čtenáře se ověřuje funkčnost jeho e-mailové adresy. Dokud není adresa ověřená, čtenář si nemůže zapůjčit žádnou knihu. Pro knihovnu je důležité mít funkční kontakt na čtenáře, protože jim občas potřebuje rozesílat upomínky
+– Ověřil e-mail čtenáře je nutné i po jeho změně. Dokud není změněný e-mail ověřen, čtenář si nemůže zapůjčit žádnou další knihu
+– Knihovna nabízí k zapůjčení i knihy pojednávající o alkoholu. Tyto knihy jsou označeny štítkem s názvem „alcohol“. Platí, že si je mohou zapůjčit pouze čtenáři starší 18 let
+- Knihovna je značně liberální, ale všeho s mírou – čtenářům, kteří do roka nevrátí zapůjčené knihy, se rozesílají upomínky
+
+Příprava půdy
+-----
+
+Pro názornost začneme úplně od nuly. Vytvoříme si projekt s následující strukturou:
+
+/--
+app/
+├── db/
+│    └── quickstart-reference.sq3    ← referenční SQLite databáze
+├── Model/
+│    ├── Entity/                     ← prostor pro entity
+│    └── Repository/                 ← prostor pro repositáře
+├── Util/
+├── vendor/
+│    ├── LeanMapper/                 ← knihovna Lean Mapper
+│    ├── dibi.min.php                ← jednosouborová verze knihovny dibi, nad kterou je Lean Mapper postaven
+│    └── SplClassLoader.php          ← jednosouborový class loader využívající standard PSR-0
+└── bootstrap.php                     ← inicializace prostředí, databáze a Lean Mapperu
+\--
+
+A rovnou si vytvoříme soubor bootstrap.php:
+
+/--php
+<?php
+// app/bootstrap.php
+
+use LeanMapper\Connection;
+use LeanMapper\DefaultEntityFactory;
+use LeanMapper\DefaultMapper;
+
+require_once __DIR__ . '/vendor/SplClassLoader.php';
+require_once __DIR__ . '/vendor/dibi.min.php';
+require_once __DIR__ . '/vendor/LeanMapper/loader.php';
+
+// zaregistrujeme class loader
+$classLoader = new SplClassLoader(null, __DIR__);
+$classLoader->register();
+
+// vytvoříme pracovní SQLite databázi zkopírováním referenční
+copy(__DIR__ . '/db/quickstart-reference.sq3', __DIR__ . '/db/quickstart.sq3');
+
+// vytvoření instancí základních tříd Lean Mapperu
+$connection = new Connection([
+	'driver' => 'sqlite3',
+	'database' => __DIR__ . '/db/quickstart.sq3',
+]);
+$mapper = new DefaultMapper;
+$entityFactory = new DefaultEntityFactory;
+\--
+
+Vlastní inicializace Lean Mapperu se sestává z vytvoření instancí třech tříd: `LeanMapper\Connection`, nějaké implementace `LeanMapper\IMapper` a nějaké implementace `LeanMapper\IEntityFactory`. Obejdete se bez složitého nastavování cache, adresářů, práv přístupu k nim a dalších záležitostí, na které jste možná narazili u jiných knihoven.
+
+Určitě vás zajímá, jaké jsou zodpovědnosti těchto tříd. Alespoň stručně si je proto tedy představme.
+
+**`LeanMapper\Connection`**
+
+DBAL, která kompletně zapouzdřuje komunikaci s databází. Na všech místech, kde Lean Mapper potřebuje získat nějaká data z databáze, potřebuje k ruce správně nakonfigurovanou instanci této třídy. Jedná se o třídu odvozenou od `DibiConnection`, které rozšiřuje jen o pár metod nezbytných pro práci s filtry (viz dále).
+
+**`LeanMapper\IMapper`**
+
+Rozhraní, jehož implementace vyčerpávajícím způsobem popisuje detaily objektově relačního mapování v dané aplikaci.
+
+Lean Mapper, tak jako mnoho jiných knihoven a frameworků, preferuje konvence před konfigurací, a proto lze na tyto detaily nahlížet primárně jako na soubor konvencí. Co si pod tím představit? Jedna taková konvence může například řešit, jak z názvu entity odvodit název tabulky, ve které jsou uložena její data. Jiná zase to, jak odvodit název spojovací tabulky z názvů spojovaných tabulek. A dalo by se pokračovat…
+
+`IMapper` ale samozřejmě myslí i na případy, kdy si s pouhými konvencemi nevystačíme. Představte si například, že jsme po někom zdědili hotovou databázi, ten někdo si s názvy tabulek a sloupců příliš nelámal hlavu, a my bychom teď rádi na takový „chaos“ namapovali objekty. Lean Mapper nám to umožní. I o tom pojednává kapitola věnovaná rozhraní `IMapper` v podrobné dokumentaci.
+
+My si v našem quick startu vystačíme s výchozí implementací `LeanMapper\DefaultMapper`, která je vestavěnou součástí Lean Mapperu. Určitě se na kód této triviální třídy podívejte. Občas vám totiž může rozhodnutí, že svou vlastní implementaci `IMapper` odvodíte právě od této třídy, ušetřit psaní.
+
+**`LeanMapper\IEntityFactory`**
+
+Řekněme, že chceme vytvořit instanci entity `Book`, pro kterou už máme data v databázi. První, co potřebujeme zjistit, je, kde v databázi se potřebná data nacházejí. Přesně to nám prozradí `IMapper`. Následně, známe-li potřebné detaily mapování, můžeme přistoupit k načtení vlastních dat, k čemuž nám poslouží `Connection`. A co dál? Stačí už jen získaná data „zapouzdřit“ do entity?
+
+Ano, opravdu to stačí. Nicméně Lean Mapper samotné vytvoření instance entity deleguje na `IEntityFactory`, a to proto, aby bylo v případě potřeby možné proces vzniku entit v jeho nitru řídit. Už v našem quick startu se setkáme s entitami, které mají nějaké závislosti, a právě `IEntityFactory` je ideální místo, kde jim je lze předat.
+
+Začneme ale s výchozí implementací `LeanMapper\DefaultEntityFactory`. Pokud se na kód této podíváte třídy, zjistíte, že se jedná o úplně nejjednodušší možnou implementaci `IEntityFactory`.
+
+-----
+
+Trojice popsaných tříd (respektive jedné třídy a dvou rozhraní) patří mezi ty nejdůležitější v Lean Mapperu. Za okamžik se seznámíme ještě s neméně důležitým `LeanMapper\Repository` (instance potomů této třídy vytváří pomyslnou vrstvu, skrze kterou prostupují entity z databáze do aplikace a obráceně) a samozřejmě také s `LeanMapper\Entity`.
+
+Definice entit
+-----
+
+Smyslem entit je reprezentovat v aplikaci *objekty reálného světa* (označované občas honosněji jako *doménové objekty*, kde *doménou* rozumíme oblast zájmu naší aplikace). Dobře se smysl entit vysvětluje názorně: s čím bude operovat náš informační systém pro knihovnu? Určitě s knihami. A také s čtenáři, autory knih, výpůjčkami… a tato **podstatná jména** už nám přímo napovídají, jaké budeme mít v aplikaci entity: `Book`, `Author`, `Borrowing` a určitě by vás napadly i další.
+
+Důležité je, že tyto doménové objekty mají pár důležitých rysů:
+
+- Mají jasně dané veřejné API (včetně tzv. položek, viz další bod), jsou zvenčí nenarušitelné a dokonale zapouzdřené. To by mělo platit pro všechny objekty v OOP, ale řekněme, že pro entity to platí obzvlášť. Tím nám totiž chrání konzistenci dat
+
+- Objekty si v OOP až na pár výjimek udržují stav. Entity si svůj stav udržují především v něčem, čemu budeme říkak *položky*. Každý *objekt reálného světa* má určité vlastnosti, které u něj v aplikaci potřebujeme sledovat. Například u autora nás může zajímat jeho jméno, příjmení, webové stránky, u knihy její název, počet kusů na skladě a dalo by se dlouze pokračovat. A právě tyto informace uchováváme v položkách. Každá položka má svůj název, typ běžně i řadu dalších pravidel pro práci s ní.
+
+- Jejich stav je persistentní. V době, kdy váš PHP skript už dávno skončil, stav vašich entit nadále přežívá uložen v databázi (nebo jiném úložišti) a jakmile je zapotřebí, je z databáze opět načten do operační paměti. *Persistovat entitu* v terminologii Lean Mapperu znamená uložit její aktuální stav do úložiště.
+
+- Mohou plně využívat potenciálu OOP. Kromě stavu v položkách mohou samozřejmě obsahovat i metody, které ten stav mění, a je-li k tomu důvod, mohou i posílat zprávy jiným objektům. To, co by entita *ještě měla* a *už neměla* dělat, je nad rámec quick startu a budeme se tím hlouběji zabývat v podrobné dokumentaci.
+
+-----
+
+Vytvořme si tedy entity, které v naší aplikaci budeme potřebovat. Začněme těmi nejjednoduššími:
+
+/--php
+<?php
+// app/Model/Entity/Tag.php
+
+namespace Model\Entity;
+
+/**
+ * @property int $id
+ * @property string $name
+ */
+class Tag extends \LeanMapper\Entity
+{
+}
+\--
+
+/--php
+<?php
+// app/Model/Entity/Author.php
+
+namespace Model\Entity;
+
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $web
+ */
+class Author extends \LeanMapper\Entity
+{
+}
+\--
+
+Entita `Tag` reprezentuje štítek, kterými budeme označovat knihy, a entita `Author` reprezentuje autora knihy.
+
+Doporučený způsob definice položek entit v Lean Mapperu je pomocí anotací. Tento způsob má hned několik podstatných výhod:
+
+- Využívá se standardní anotace `@property`, a proto vám většina hlavních IDE bude dobře rozumět a bude vám **napovídat**
+
+[* autocomplete.png *]
+
+- Je velmi expresivní. Stěží byste hledali způsob, jak stručněji položky včetně pravidel pro práci s nimi nadefinovat
+
+- Všechny položky mohou být viděny zároveň (rozumějte na jedné obrazovce) i včetně většiny detailů. Okamžitě si tak lze udělat o dané entitě představu: o jejích položkách, vazbách na jiné entity… Nemusíte se kvůli tomu zaobírat množstvím getterů a setterů a jako puzzle skládat celkový obraz entity
+
+- Asi není nutné dodávat, že takto nadefinované položky jsou nenarušitelné a naprosto bezpečné. Lean Mapper za vás následně kontroluje správnost typů, to, zda lze do té či oné položky zapisovat, zda může obsahovat `null`… Tím vám Lean Mapper ušetří mnoho psaní, protože pokud byste chtěli mít takto robustní položky nadefinované jen pomocí „nemagických“ getterů a setterů, museli byste napsat nemalé množství nezáživného rutinního kódu
+
+Anotace ale nejsou jediným možným způsobem, jak v Lean Mapperu nadefinovat položky entity. Ve skutečnosti se lze bez anotací úplně obejít a vše nadefinovat pomocí přístupových metod, tj. pomocí metod pro čtení hodnot položek a případně i metod pro zápis. Jelikož by se ale vzniklé přístupové metody sestávaly z víceméně nezáživného rutinního kódu, vřele doporučujeme anotace používat.
+
+Občas nicméně zjistíte, že potřebujete nadefinovat položku s tak speciálními vlastnostmi, že si pouze s anotacemi nevystačíte. Jejich vyjadřovací schopnosti jsou totiž omezené. V ten okamžik je využití přístupových metod plně na místě. Jejich vyjadřovací schopnosti jsou totiž mnohonásobně větší (jak si ukážeme i v quick startu).
+
+Úžasně silným nástrojem je pak kombinovaná definice jedné položky pomocí anotace i metod zároveň. Tím lze vytěžit maximum z toho, co za vás může udělat Lean Mapper, a zároveň naplno využít vyjadřovacích schopností metod.
+
+-----
+
+Všimněte si dále, jakým způsobem lze zapsat, že položka může obsahovat `null`, a také si všimněte, že entity v Lean Mapperu jsou potomci abstraktní třídy `LeanMapper\Entity`.
+
+-----
+
+Dále se neobejdeme bez entity reprezentující knihu:
+
+/--php
+<?php
+// app/Model/Entity/Book.php
+
+namespace Model\Entity;
+
+/**
+ * @property int $id
+ *
+ * @property Author $author m:hasOne
+ * @property Author|null $reviewer m:hasOne(reviewer_id)
+ * @property Tag[] $tags m:hasMany
+ *
+ * @property string $pubdate
+ * @property string $name
+ * @property string|null $description
+ * @property string|null $website
+ * @property bool $available = true
+ */
+class Book extends \LeanMapper\Entity
+{
+}
+\--
+
+Položky `$author`, `$reviewer` a `$tags` reprezentují vazby na jiné entity, které chceme u knihy sledovat. Mají doslova následující význam:
+
+`@property Author $author m:hasOne`
+Kniha má položku `$author`, která obsahuje instanci entity `Author`. Platí, že kniha má právě jednoho autora.
+
+`@property Author|null $reviewer m:hasOne(reviewer_id)`
+Kniha má položku `$reviewer`, která obsahuje instanci entity `Author`. Platí že kniha má jednoho nebo žádného recenzenta, přičemž nemá-li kniha žádného recenzenta, v položce se nachází hodnota `null`. Dále platí, že název sloupce, který  v databázové tabulce `book` reprezentuje recencenství, je `reviewer_id`.
+
+`@property Tag[] $tags m:hasMany`
+Kniha má položku `$tags`, která obsahuje kolekci instancí `Tag`. Platí, že kniha může být označena libovolným množstvím štítků.
+
+-----
+
+Věnujte pozornost také položce `$pubdate` – jistě vás potěší, že Lean Mapper rozumí `use` statementům.
+
+A také nepřehlédněte definici položky `$available` – takto nadefinovaná bude mít výchozí hodnotu `true`. Takto přirozeně a jednodušše lze výchozí hodnoty položek v Lean Mapperu nastavovat.
+
+Pokračujme entitou, která bude reprezentovat čtenáře:
+
+/--php
+<?php
+// app/Model/Entity/Reader.php
+
+namespace Model\Entity;
+
+use InvalidArgumentException;
+
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $email m:passThru(validateEmail)
+ * @property string $born
+ */
+class Reader extends \LeanMapper\Entity
+{
+
+	/**
+	 * @param string $email
+	 * @return string
+	 * @throws InvalidArgumentException
+	 */
+	protected function validateEmail($email)
+	{
+		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			throw new InvalidArgumentException("Invalid e-mail address given: $email.");
+		}
+		return $email;
+	}
+
+}
+\--
+
+U této entity se poprvé setkáváme s příznakem `m:passThru`, který umožňuje hodnotu položky při jejím čtení či zápisu *poslat skrz* vybranou metodu v entitní třídě. V ní může dojít k úpravě hodnoty, její „pokročilé“ validaci (tj. nejen typové), anebo k realizaci nějakých vedlejších efektů. My v entitě `Reader` tento příznak využijeme k ověření toho, že hodnota je validní e-mailová adresa. Díky tomu si můžeme být jisti, že se v položce `$email` neobjeví nikdy nic jiného, než validní e-mailová adresa.
+
+
+
+
+
+
+
+
+
+
+
