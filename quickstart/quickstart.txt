@@ -76,7 +76,7 @@ Určitě vás zajímá, jaké jsou zodpovědnosti těchto tříd. Alespoň stru�
 
 **`LeanMapper\Connection`**
 
-DBAL, která kompletně zapouzdřuje komunikaci s databází. Na všech místech, kde Lean Mapper potřebuje získat nějaká data z databáze, potřebuje k ruce správně nakonfigurovanou instanci této třídy. Jedná se o třídu odvozenou od `DibiConnection`, které rozšiřuje jen o pár metod nezbytných pro práci s filtry (viz dále).
+DBAL, která kompletně zapouzdřuje komunikaci s databází. Na všech místech, kde Lean Mapper potřebuje získat nějaká data z databáze, potřebuje k ruce správně nakonfigurovanou instanci této třídy. Jedná se o třídu odvozenou od `DibiConnection`, kterou rozšiřuje jen o pár metod nezbytných pro práci s filtry (viz dále).
 
 **`LeanMapper\IMapper`**
 
@@ -92,7 +92,7 @@ My si v našem quick startu vystačíme s výchozí implementací `LeanMapper\De
 
 Řekněme, že chceme vytvořit instanci entity `Book`, pro kterou už máme data v databázi. První, co potřebujeme zjistit, je, kde v databázi se potřebná data nacházejí. Přesně to nám prozradí `IMapper`. Následně, známe-li potřebné detaily mapování, můžeme přistoupit k načtení vlastních dat, k čemuž nám poslouží `Connection`. A co dál? Stačí už jen získaná data „zapouzdřit“ do entity?
 
-Ano, opravdu to stačí. Nicméně Lean Mapper samotné vytvoření instance entity deleguje na `IEntityFactory`, a to proto, aby bylo v případě potřeby možné proces vzniku entit v jeho nitru řídit. Už v našem quick startu se setkáme s entitami, které mají nějaké závislosti, a právě `IEntityFactory` je ideální místo, kde jim je lze předat.
+Ano, opravdu to stačí. Nicméně Lean Mapper samotné vytvoření instance entity deleguje na `IEntityFactory`, a to proto, aby bylo v případě potřeby možné proces vzniku entity v nitru Lean Mapperu řídit. Už v našem quick startu se setkáme s entitami, které mají nějaké závislosti, a právě `IEntityFactory` je ideální místo, kde jim je lze předat.
 
 Začneme ale s výchozí implementací `LeanMapper\DefaultEntityFactory`. Pokud se na kód této podíváte třídy, zjistíte, že se jedná o úplně nejjednodušší možnou implementaci `IEntityFactory`.
 
@@ -107,13 +107,13 @@ Smyslem entit je reprezentovat v aplikaci *objekty reálného světa* (označova
 
 Důležité je, že tyto doménové objekty mají pár důležitých rysů:
 
-- Mají jasně dané veřejné API (včetně tzv. položek, viz další bod), jsou zvenčí nenarušitelné a dokonale zapouzdřené. To by mělo platit pro všechny objekty v OOP, ale řekněme, že pro entity to platí obzvlášť. Tím nám totiž chrání konzistenci dat
+- Mají jasně dané veřejné API (včetně tzv. položek, viz další bod), jsou zvenčí nenarušitelné a dokonale zapouzdřené. To by mělo platit pro všechny objekty v OOP, ale řekněme, že pro entity to platí obzvlášť. Tím nám totiž chrání konzistenci dat.
 
-- Objekty si v OOP až na pár výjimek udržují stav. Entity si svůj stav udržují především v něčem, čemu budeme říkak *položky*. Každý *objekt reálného světa* má určité vlastnosti, které u něj v aplikaci potřebujeme sledovat. Například u autora nás může zajímat jeho jméno, příjmení, webové stránky, u knihy její název, počet kusů na skladě a dalo by se dlouze pokračovat. A právě tyto informace uchováváme v položkách. Každá položka má svůj název, typ běžně i řadu dalších pravidel pro práci s ní.
+- Objekty si v OOP až na pár výjimek udržují stav. Entity si svůj stav udržují především v něčem, čemu budeme říkak *položky*. Každý *objekt reálného světa* má určité vlastnosti, které u něj v aplikaci potřebujeme sledovat. Například u autora nás může zajímat jeho jméno, příjmení, webové stránky, u knihy její název, počet kusů na skladě a dalo by se dlouze pokračovat. A právě tyto informace uchováváme v položkách. Každá položka má svůj název, typ a běžně i řadu dalších pravidel pro práci s ní.
 
 - Jejich stav je persistentní. V době, kdy váš PHP skript už dávno skončil, stav vašich entit nadále přežívá uložen v databázi (nebo jiném úložišti) a jakmile je zapotřebí, je z databáze opět načten do operační paměti. *Persistovat entitu* v terminologii Lean Mapperu znamená uložit její aktuální stav do úložiště.
 
-- Mohou plně využívat potenciálu OOP. Kromě stavu v položkách mohou samozřejmě obsahovat i metody, které ten stav mění, a je-li k tomu důvod, mohou i posílat zprávy jiným objektům. To, co by entita *ještě měla* a *už neměla* dělat, je nad rámec quick startu a budeme se tím hlouběji zabývat v podrobné dokumentaci.
+- Mohou plně využívat potenciálu OOP. Kromě stavu v položkách mohou samozřejmě obsahovat i metody, které jej mění, a je-li k tomu důvod, mohou i posílat zprávy jiným objektům. To, co by entita *ještě měla* a *už neměla* dělat, je nad rámec quick startu a budeme se tím hlouběji zabývat v podrobné dokumentaci.
 
 -----
 
@@ -150,21 +150,21 @@ class Author extends \LeanMapper\Entity
 }
 \--
 
-Entita `Tag` reprezentuje štítek, kterými budeme označovat knihy, a entita `Author` reprezentuje autora knihy.
+Entity `Tag` reprezentují štítky, kterým budeme označovat knihy, a entity `Author` reprezentují autory knih.
 
-Doporučený způsob definice položek entit v Lean Mapperu je pomocí anotací. Tento způsob má hned několik podstatných výhod:
+Doporučený způsob definice položek entit v Lean Mapperu je pomocí anotací. To proto, že má hned několik podstatných výhod:
 
 - Využívá se standardní anotace `@property`, a proto vám většina hlavních IDE bude dobře rozumět a bude vám **napovídat**
 
 [* autocomplete.png *]
 
-- Je velmi expresivní. Stěží byste hledali způsob, jak stručněji položky včetně pravidel pro práci s nimi nadefinovat
+- Je velmi expresivní. Stěží byste hledali způsob, jak stručněji položky včetně pravidel pro práci s nimi nadefinovat.
 
-- Všechny položky mohou být viděny zároveň (rozumějte na jedné obrazovce) i včetně většiny detailů. Okamžitě si tak lze udělat o dané entitě představu: o jejích položkách, vazbách na jiné entity… Nemusíte se kvůli tomu zaobírat množstvím getterů a setterů a jako puzzle skládat celkový obraz entity
+- Všechny položky mohou být viděny zároveň (rozumějte na jedné obrazovce) i včetně většiny detailů. Okamžitě si tak lze udělat o dané entitě představu: o jejích položkách, vazbách na jiné entity… Nemusíte se kvůli tomu zaobírat množstvím getterů a setterů a jako puzzle skládat celkový obraz entity.
 
-- Asi není nutné dodávat, že takto nadefinované položky jsou nenarušitelné a naprosto bezpečné. Lean Mapper za vás následně kontroluje správnost typů, to, zda lze do té či oné položky zapisovat, zda může obsahovat `null`… Tím vám Lean Mapper ušetří mnoho psaní, protože pokud byste chtěli mít takto robustní položky nadefinované jen pomocí „nemagických“ getterů a setterů, museli byste napsat nemalé množství nezáživného rutinního kódu
+- Asi není nutné dodávat, že takto nadefinované položky jsou nenarušitelné a naprosto bezpečné. Lean Mapper za vás následně kontroluje správnost typů, to, zda lze do té či oné položky zapisovat, zda může obsahovat `null`… Tím vám Lean Mapper ušetří mnoho psaní, protože pokud byste chtěli mít takto robustní položky nadefinované jen pomocí „nemagických“ getterů a setterů, museli byste napsat nemalé množství nezáživného rutinního kódu.
 
-Anotace ale nejsou jediným možným způsobem, jak v Lean Mapperu nadefinovat položky entity. Ve skutečnosti se lze bez anotací úplně obejít a vše nadefinovat pomocí přístupových metod, tj. pomocí metod pro čtení hodnot položek a případně i metod pro zápis. Jelikož by se ale vzniklé přístupové metody sestávaly z víceméně nezáživného rutinního kódu, vřele doporučujeme anotace používat.
+Anotace ale nejsou jediným možným způsobem, jak v Lean Mapperu nadefinovat položky entit. Ve skutečnosti se lze bez anotací úplně obejít a vše nadefinovat pomocí přístupových metod, tj. pomocí metod pro čtení hodnot položek a případně i metod pro zápis. Jelikož by se ale vzniklé přístupové metody sestávaly z víceméně nezáživného rutinního kódu, vřele doporučujeme anotace používat.
 
 Občas nicméně zjistíte, že potřebujete nadefinovat položku s tak speciálními vlastnostmi, že si pouze s anotacemi nevystačíte. Jejich vyjadřovací schopnosti jsou totiž omezené. V ten okamžik je využití přístupových metod plně na místě. Jejich vyjadřovací schopnosti jsou totiž mnohonásobně větší (jak si ukážeme i v quick startu).
 
@@ -202,7 +202,7 @@ class Book extends \LeanMapper\Entity
 }
 \--
 
-Položky `$author`, `$reviewer` a `$tags` reprezentují vazby na jiné entity, které chceme u knihy sledovat. Mají doslova následující význam:
+Položky `$author`, `$reviewer` a `$tags` reprezentují vazby na jiné entity, které chceme u knih sledovat. Mají doslova následující význam:
 
 `@property Author $author m:hasOne`
 Kniha má položku `$author`, která obsahuje instanci entity `Author`. Platí, že kniha má právě jednoho autora.
@@ -211,13 +211,13 @@ Kniha má položku `$author`, která obsahuje instanci entity `Author`. Platí, 
 Kniha má položku `$reviewer`, která obsahuje instanci entity `Author`. Platí že kniha má jednoho nebo žádného recenzenta, přičemž nemá-li kniha žádného recenzenta, v položce se nachází hodnota `null`. Dále platí, že název sloupce, který  v databázové tabulce `book` reprezentuje recencenství, je `reviewer_id`.
 
 `@property Tag[] $tags m:hasMany`
-Kniha má položku `$tags`, která obsahuje kolekci instancí `Tag`. Platí, že kniha může být označena libovolným množstvím štítků.
+Kniha má položku `$tags`, která obsahuje kolekci instancí entity `Tag`. Platí, že kniha může být označena libovolným množstvím štítků.
 
 -----
 
-Věnujte pozornost také položce `$pubdate` – jistě vás potěší, že Lean Mapper rozumí `use` statementům.
+<!-- Věnujte pozornost také položce `$pubdate` – jistě vás potěší, že Lean Mapper rozumí `use` statementům. (vyhodit, kvůli SQLite $pubdate není DateTime) -->
 
-A také nepřehlédněte definici položky `$available` – takto nadefinovaná bude mít výchozí hodnotu `true`. Takto přirozeně a jednodušše lze výchozí hodnoty položek v Lean Mapperu nastavovat.
+Věnujte pozornost také definici položky `$available` – takto nadefinovaná bude mít výchozí hodnotu `true`. Takto přirozeně a jednodušše lze výchozí hodnoty položek v Lean Mapperu nastavovat.
 
 Pokračujme entitou, která bude reprezentovat čtenáře:
 
