@@ -9,8 +9,8 @@ use Util\Mailer;
 
 /**
  * @property int $id
- * @property Book $book m:hasOne m:passThru(checkWhileSettingBook)
- * @property Reader $reader m:hasOne m:passThru(checkWhileSettingReader)
+ * @property Book $book m:hasOne m:useMethods
+ * @property Reader $reader m:hasOne m:useMethods
  * @property string $borrowed
  */
 class Borrowing extends \LeanMapper\Entity
@@ -35,23 +35,37 @@ class Borrowing extends \LeanMapper\Entity
 	}
 
 	/**
-	 * @param Book $book
 	 * @return Book
 	 */
-	public function checkWhileSettingBook(Book $book)
+	public function getBook()
+	{
+		return $this->__get('book');
+	}
+
+	/**
+	 * @param Book $book
+	 */
+	public function setBook(Book $book)
 	{
 		if (isset($this->reader)) {
 			$this->checkAgeAndAlcohol($book, $this->reader);
 		}
-		return $book;
+		$this->__set('book', $book);
+	}
+
+	/**
+	 * @return Reader
+	 */
+	public function getReader()
+	{
+		return $this->__get('reader');
 	}
 
 	/**
 	 * @param Reader $reader
-	 * @return Reader
 	 * @throws InvalidArgumentException
 	 */
-	public function checkWhileSettingReader(Reader $reader)
+	public function setReader(Reader $reader)
 	{
 		if (!$reader->hasVerifiedEmail) {
 			throw new InvalidArgumentException("E-mail of $reader->name was not verified.");
@@ -59,7 +73,7 @@ class Borrowing extends \LeanMapper\Entity
 		if (isset($this->book)) {
 			$this->checkAgeAndAlcohol($this->book, $reader);
 		}
-		return $reader;
+		$this->__set('reader', $reader);
 	}
 
 	public function remindForgetfulReader()

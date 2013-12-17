@@ -15,13 +15,11 @@ $classLoader->register();
 
 copy(__DIR__ . '/db/quickstart-reference.sq3', __DIR__ . '/db/quickstart.sq3');
 
-$dbConfig = array(
+$connection = new Connection([
 	'driver' => 'sqlite3',
 	'database' => __DIR__ . '/db/quickstart.sq3',
-);
-
+]);
 $mailer = new Mailer;
 $tokenGenerator = new TokenGenerator;
 $mapper = new DefaultMapper;
 $entityFactory = new EntityFactory($mailer, $tokenGenerator);
-$connection = new Connection($dbConfig);

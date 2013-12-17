@@ -1,3 +1,6 @@
 .idea
 SciTE.properties
 /_local
+dev.php
+LeanMapper/
+!LeanMapper/readme.txt

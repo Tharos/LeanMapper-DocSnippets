@@ -105,11 +105,11 @@ Definice entit
 
 Smyslem entit je reprezentovat v aplikaci *objekty reálného světa* (označované občas honosněji jako *doménové objekty*, kde *doménou* rozumíme oblast zájmu naší aplikace). Dobře se smysl entit vysvětluje názorně: s čím bude operovat náš informační systém pro knihovnu? Určitě s knihami. A také s čtenáři, autory knih, výpůjčkami… a tato **podstatná jména** už nám přímo napovídají, jaké budeme mít v aplikaci entity: `Book`, `Author`, `Borrowing` a určitě by vás napadly i další.
 
-Důležité je, že tyto doménové objekty mají pár důležitých rysů:
+Důležité je, že tyto doménové objekty mají několik typických rysů:
 
 - Mají jasně dané veřejné API (včetně tzv. položek, viz další bod), jsou zvenčí nenarušitelné a dokonale zapouzdřené. To by mělo platit pro všechny objekty v OOP, ale řekněme, že pro entity to platí obzvlášť. Tím nám totiž chrání konzistenci dat.
 
-- Objekty si v OOP až na pár výjimek udržují stav. Entity si svůj stav udržují především v něčem, čemu budeme říkak *položky*. Každý *objekt reálného světa* má určité vlastnosti, které u něj v aplikaci potřebujeme sledovat. Například u autora nás může zajímat jeho jméno, příjmení, webové stránky, u knihy její název, počet kusů na skladě a dalo by se dlouze pokračovat. A právě tyto informace uchováváme v položkách. Každá položka má svůj název, typ a běžně i řadu dalších pravidel pro práci s ní.
+- Objekty si v OOP až na pár výjimek udržují stav. Entity si svůj stav udržují především v něčem, čemu budeme říkat *položky*. Každý *objekt reálného světa* má určité vlastnosti, které u něj v aplikaci potřebujeme sledovat. Například u autora nás může zajímat jeho jméno, příjmení, webové stránky, u knihy její název, počet kusů na skladě a dalo by se dlouze pokračovat. A právě tyto informace uchováváme v položkách. Každá položka má svůj název, typ a běžně i řadu dalších pravidel pro práci s ní.
 
 - Jejich stav je persistentní. V době, kdy váš PHP skript už dávno skončil, stav vašich entit nadále přežívá uložen v databázi (nebo jiném úložišti) a jakmile je zapotřebí, je z databáze opět načten do operační paměti. *Persistovat entitu* v terminologii Lean Mapperu znamená uložit její aktuální stav do úložiště.
 
