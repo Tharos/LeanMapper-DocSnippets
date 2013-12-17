@@ -10,7 +10,7 @@ Zadání
 
 Naprogramujte základ modelu informačního systému pro knihovnu. V knihovně je zapotřebí sledovat knihy, autory knih, recenzenty knih, čtenáře, výpůjčky a štítky, kterými jsou knihy označeny. Využijte následujícího schéma databáze:
 
-[* schema.png *]
+[* resources/schema.png *]
 
 v knihovně dále platí, že:
 
@@ -43,31 +43,7 @@ app/
 A rovnou si vytvoříme soubor bootstrap.php:
 
 /--php
-<?php
-// app/bootstrap.php
-
-use LeanMapper\Connection;
-use LeanMapper\DefaultEntityFactory;
-use LeanMapper\DefaultMapper;
-
-require_once __DIR__ . '/vendor/SplClassLoader.php';
-require_once __DIR__ . '/vendor/dibi.min.php';
-require_once __DIR__ . '/vendor/LeanMapper/loader.php';
-
-// zaregistrujeme class loader
-$classLoader = new SplClassLoader(null, __DIR__);
-$classLoader->register();
-
-// vytvoříme pracovní SQLite databázi zkopírováním referenční
-copy(__DIR__ . '/db/quickstart-reference.sq3', __DIR__ . '/db/quickstart.sq3');
-
-// vytvoření instancí základních tříd Lean Mapperu
-$connection = new Connection([
-	'driver' => 'sqlite3',
-	'database' => __DIR__ . '/db/quickstart.sq3',
-]);
-$mapper = new DefaultMapper;
-$entityFactory = new DefaultEntityFactory;
+{include code-step1/app/bootstrap.php}
 \--
 
 Vlastní inicializace Lean Mapperu se sestává z vytvoření instancí třech tříd: `LeanMapper\Connection`, nějaké implementace `LeanMapper\IMapper` a nějaké implementace `LeanMapper\IEntityFactory`. Obejdete se bez složitého nastavování cache, adresářů, práv přístupu k nim a dalších záležitostí, na které jste možná narazili u jiných knihoven.
@@ -120,34 +96,7 @@ Důležité je, že tyto doménové objekty mají několik typických rysů:
 Vytvořme si tedy entity, které v naší aplikaci budeme potřebovat. Začněme těmi nejjednoduššími:
 
 /--php
-<?php
-// app/Model/Entity/Tag.php
-
-namespace Model\Entity;
-
-/**
- * @property int $id
- * @property string $name
- */
-class Tag extends \LeanMapper\Entity
-{
-}
-\--
-
-/--php
-<?php
-// app/Model/Entity/Author.php
-
-namespace Model\Entity;
-
-/**
- * @property int $id
- * @property string $name
- * @property string|null $web
- */
-class Author extends \LeanMapper\Entity
-{
-}
+{include code-step2/app/Model/Entity/Tag.php}
 \--
 
 Entity `Tag` reprezentují štítky, kterým budeme označovat knihy, a entity `Author` reprezentují autory knih.
@@ -156,7 +105,7 @@ Doporučený způsob definice položek entit v Lean Mapperu je pomocí anotací.
 
 - Využívá se standardní anotace `@property`, a proto vám většina hlavních IDE bude dobře rozumět a bude vám **napovídat**
 
-[* autocomplete.png *]
+[* resources/autocomplete.png *]
 
 - Je velmi expresivní. Stěží byste hledali způsob, jak stručněji položky včetně pravidel pro práci s nimi nadefinovat.
 
@@ -179,27 +128,7 @@ Všimněte si dále, jakým způsobem lze zapsat, že položka může obsahovat 
 Dále se neobejdeme bez entity reprezentující knihu:
 
 /--php
-<?php
-// app/Model/Entity/Book.php
-
-namespace Model\Entity;
-
-/**
- * @property int $id
- *
- * @property Author $author m:hasOne
- * @property Author|null $reviewer m:hasOne(reviewer_id)
- * @property Tag[] $tags m:hasMany
- *
- * @property string $pubdate
- * @property string $name
- * @property string|null $description
- * @property string|null $website
- * @property bool $available = true
- */
-class Book extends \LeanMapper\Entity
-{
-}
+{include code-step2/app/Model/Entity/Book.php}
 \--
 
 Položky `$author`, `$reviewer` a `$tags` reprezentují vazby na jiné entity, které chceme u knih sledovat. Mají doslova následující význam:
@@ -222,43 +151,36 @@ Věnujte pozornost také definici položky `$available` – takto nadefinovaná 
 Pokračujme entitou, která bude reprezentovat čtenáře:
 
 /--php
-<?php
-// app/Model/Entity/Reader.php
-
-namespace Model\Entity;
-
-use InvalidArgumentException;
-
-/**
- * @property int $id
- * @property string $name
- * @property string $email m:passThru(validateEmail)
- * @property string $born
- */
-class Reader extends \LeanMapper\Entity
-{
-
-	/**
-	 * @param string $email
-	 * @return string
-	 * @throws InvalidArgumentException
-	 */
-	protected function validateEmail($email)
-	{
-		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-			throw new InvalidArgumentException("Invalid e-mail address given: $email.");
-		}
-		return $email;
-	}
-
-}
+{include code-step2/app/Model/Entity/Reader.php}
 \--
 
 U této entity se poprvé setkáváme s příznakem `m:passThru`, který umožňuje hodnotu položky při jejím čtení či zápisu *poslat skrz* vybranou metodu v entitní třídě. V ní může dojít k úpravě hodnoty, její „pokročilé“ validaci (tj. nejen typové), anebo k realizaci nějakých vedlejších efektů. My v entitě `Reader` tento příznak využijeme k ověření toho, že hodnota je validní e-mailová adresa. Díky tomu si můžeme být jisti, že se v položce `$email` neobjeví nikdy nic jiného, než validní e-mailová adresa.
 
+-----
 
+Velmi jednoduchá bude entita reprezentující autora knihy:
 
+/--php
+{include code-step2/app/Model/Entity/Author.php}
+\--
 
+A triviální bude z počátku také entita reprezentující výpůjčku:
+
+/--php
+{include code-step2/app/Model/Entity/Borrowing.php}
+\--
+
+Tím bychom měli vytvořené základy všech entit, které v knihovním IS budeme potřebovat
+
+Možná vás teď napadlo, že entity tak, jak jsme je nadefinovali, neřeší řadu záležitostí, které bychom *očekávali, že budou řešit*.  Lze vytvořit výpůjčku, ve které bude figurovat čtenář s neověřeným e-mailem. Anebo takovou, ve které si nezletilý čtenář zapůjčuje knihu o alkoholu… Nemějte ale obavy. Vytvořené entity budeme v celém zbytku quick startu rozšiřovat – mimo jiné právě proto, aby obsáhly tato doménová pravidla.
+
+-----
+
+Nyní je ten správný okamžik na pár ukázek alespoň základní práce s API našich entit:
+
+/--php
+{include code-step2/app/playground.php}
+\--
 
 
 
